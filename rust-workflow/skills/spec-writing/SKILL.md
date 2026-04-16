@@ -43,13 +43,46 @@ user-invocable: false
 ### 详细设计
 
 #### 数据模型变更
-<新增/修改的表、字段、索引。无则写"无数据模型变更">
+<涉及数据库变更时，**必须**用 `mcp__postgres-db__query` 查询真实 schema 后再写方案。>
+
+**查询流程**：
+1. 查相关表的当前结构：`SELECT column_name, data_type, is_nullable, column_default FROM information_schema.columns WHERE table_name = '<table>'`
+2. 查现有索引：`SELECT indexname, indexdef FROM pg_indexes WHERE tablename = '<table>'`
+3. 查外键约束：`SELECT conname, pg_get_constraintdef(oid) FROM pg_constraint WHERE conrelid = '<table>'::regclass`
+4. 如涉及大表，查行数量级：`SELECT reltuples::bigint FROM pg_class WHERE relname = '<table>'`
+
+**输出要求**：
+- 基于真实 schema 写出完整的 migration SQL（CREATE TABLE / ALTER TABLE / CREATE INDEX）
+- 标注是否破坏性变更（DROP / NOT NULL / 改类型）
+- 大表（>100 万行）的 DDL 必须标注锁表风险和建议执行方式（如 `CREATE INDEX CONCURRENTLY`）
+- 给出回滚 SQL
+- 无数据库变更则写"无数据模型变更"
 
 #### API 变更
 <新增/修改的接口，包含路径、方法、请求/响应结构。无则写"无 API 变更">
 
+#### 核心流程图
+<用 Mermaid 流程图描述核心改动的执行流程。必须包含：>
+- 主要参与者（用户、前端、后端、数据库、第三方服务）
+- 关键分支和判断节点
+- 错误/异常路径
+- 数据流向
+
+示例格式：
+```mermaid
+flowchart TD
+    A[用户发起请求] --> B{鉴权检查}
+    B -->|通过| C[业务处理]
+    B -->|失败| D[返回 401]
+    C --> E[写入数据库]
+    E -->|成功| F[返回结果]
+    E -->|失败| G[回滚 & 返回错误]
+```
+
+> 简单改动（配置变更、文案修改等无流程可言的）可省略此节，写"无核心流程变更"。
+
 #### 核心逻辑
-<关键算法、状态流转、业务规则，用伪代码或流程图说明>
+<关键算法、状态流转、业务规则，用伪代码说明>
 
 #### 文件变更清单
 | 文件 | 操作 | 说明 |
@@ -102,3 +135,4 @@ user-invocable: false
 4. **API 写具体结构**，不要写"返回相关数据"
 5. **不确定的写"待确认"**，不要用"可能"、"大概"糊弄
 6. **多方案对比时**，每个方案都要写完整设计，不能方案 B 只写"类似方案 A 但是..."
+7. **数据库变更必须基于实查**，禁止凭记忆猜 schema；MCP 查不通时标注"待确认：需人工查询 schema"

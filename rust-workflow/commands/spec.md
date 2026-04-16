@@ -1,7 +1,7 @@
 ---
 description: 基于需求生成技术方案，产出到 GitHub Issue，供人评审
 argument-hint: <需求描述 或 issue URL/编号>
-allowed-tools: Bash(gh:*), Read, Grep, Glob, WebFetch
+allowed-tools: Bash(gh:*), Read, Grep, Glob, WebFetch, mcp__postgres-db__query
 ---
 
 # /spec — 生成代码方案
