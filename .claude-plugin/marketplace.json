@@ -7,26 +7,18 @@
     {
       "name": "nextjs-workflow",
       "source": "./nextjs-workflow",
-      "description": "Next.js 开发流程 skills：组件创建、测试策略、部署流程",
-      "version": "0.1.0",
+      "description": "Next.js 全流程开发插件：/spec → /review → /pr，内置前端专项规则",
+      "version": "0.2.0",
       "category": "frontend",
-      "keywords": ["nextjs", "react", "rsc", "vercel", "testing"]
+      "keywords": ["nextjs", "react", "rsc", "spec", "review", "pr"]
     },
     {
       "name": "rust-workflow",
       "source": "./rust-workflow",
-      "description": "Rust 开发流程 skills：Cargo 管理、测试、Clippy lint",
-      "version": "0.1.0",
+      "description": "Rust 全流程开发插件：/spec → /review → /pr，内置后端专项规则",
+      "version": "0.2.0",
       "category": "backend",
-      "keywords": ["rust", "cargo", "clippy", "testing"]
-    },
-    {
-      "name": "common-workflow",
-      "source": "./common-workflow",
-      "description": "通用开发流程 skills：Git commit 规范、PR review 流程",
-      "version": "0.1.0",
-      "category": "workflow",
-      "keywords": ["git", "commit", "pr", "review", "conventional-commits"]
+      "keywords": ["rust", "cargo", "spec", "review", "pr"]
     }
   ]
 }

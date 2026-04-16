@@ -1,14 +1,21 @@
 # rust-workflow
 
-Rust 后端开发流程 plugin。
+Rust 全流程开发插件，装一个就能用 `/spec`、`/review`、`/pr`。
+
+## Commands
+
+| Command | 用途 |
+|---------|------|
+| `/spec` | 需求 → 技术方案，写入 GitHub Issue |
+| `/review` | 代码审查，PASS/FAIL 判定 |
+| `/pr` | 提交 PR + 发布物料清单 |
 
 ## Skills
 
 | Skill | 用途 |
 |-------|------|
-| `review-rules` | 后端代码审查规则，供 `/review` command 自动加载 |
-| `spec-rules` | 后端技术方案补充规则，供 `/spec` command 自动加载 |
-
-## 与 common-workflow 的关系
-
-`common-workflow` 提供 `/spec`、`/review`、`/pr` 三个 command 骨架。本 plugin 的 `review-rules` 和 `spec-rules` 在检测到 Rust 项目时自动加载，补充后端专项审查维度和方案设计要求。
+| `review-rules` | 后端专项审查规则（unsafe、错误处理、并发、性能、可观测性等） |
+| `spec-rules` | 后端方案设计规则（crate 结构、错误处理、并发模型、数据库设计等） |
+| `spec-writing` | 技术方案结构模板和写作规范 |
+| `git-commit` | Conventional commit 规范（TODO） |
+| `pr-review` | PR 自查清单（TODO） |
