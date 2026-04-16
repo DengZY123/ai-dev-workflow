@@ -16,25 +16,26 @@
 需求/Issue → /spec 生成方案 → 人工评审 → 开发 → /review 代码审查 → /pr 提交PR → 人工审批 merge
 ```
 
-## 使用说明
-
-### 添加 marketplace
+## 安装
 
 ```bash
-/plugin marketplace add <your-github-username>/dev-workflow
+# 添加 marketplace
+/plugin marketplace add DengZY123/ai-dev-workflow
+
+# 从 marketplace 中选装需要的 plugin
+/plugin install nextjs-workflow
+/plugin install rust-workflow
+/plugin install common-workflow
 ```
 
-### 安装单个 plugin
+## 更新
 
 ```bash
-/plugin install <your-github-username>/dev-workflow/nextjs-workflow
-/plugin install <your-github-username>/dev-workflow/rust-workflow
-/plugin install <your-github-username>/dev-workflow/common-workflow
+# 拉取最新版本
+/plugin marketplace update
 ```
 
-### 本地开发调试
-
-加载单个 plugin 进行调试：
+## 本地开发调试
 
 ```bash
 claude --plugin-dir ./nextjs-workflow
