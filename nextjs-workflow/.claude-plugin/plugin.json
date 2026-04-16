@@ -2,5 +2,5 @@
   "name": "nextjs-workflow",
   "version": "0.2.0",
   "description": "Next.js 全流程开发插件：/spec 方案设计 → /review 代码审查 → /pr 提交发布，内置前端专项规则",
-  "author": "DengZY123"
+  "author": { "name": "DengZY123" }
 }
