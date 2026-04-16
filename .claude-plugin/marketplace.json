@@ -1,13 +1,12 @@
 {
   "name": "dev-workflow-marketplace",
-  "owner": "<your-github-username>",
+  "owner": {
+    "name": "DengZY123"
+  },
   "plugins": [
     {
       "name": "nextjs-workflow",
-      "source": {
-        "type": "local",
-        "path": "./nextjs-workflow"
-      },
+      "source": "./nextjs-workflow",
       "description": "Next.js 开发流程 skills：组件创建、测试策略、部署流程",
       "version": "0.1.0",
       "category": "frontend",
@@ -15,10 +14,7 @@
     },
     {
       "name": "rust-workflow",
-      "source": {
-        "type": "local",
-        "path": "./rust-workflow"
-      },
+      "source": "./rust-workflow",
       "description": "Rust 开发流程 skills：Cargo 管理、测试、Clippy lint",
       "version": "0.1.0",
       "category": "backend",
@@ -26,10 +22,7 @@
     },
     {
       "name": "common-workflow",
-      "source": {
-        "type": "local",
-        "path": "./common-workflow"
-      },
+      "source": "./common-workflow",
       "description": "通用开发流程 skills：Git commit 规范、PR review 流程",
       "version": "0.1.0",
       "category": "workflow",

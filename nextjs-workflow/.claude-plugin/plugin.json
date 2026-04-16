@@ -2,5 +2,5 @@
   "name": "nextjs-workflow",
   "version": "0.1.0",
   "description": "Next.js 开发流程 plugin：组件创建与 RSC 决策、测试策略、部署流程",
-  "author": "<your-name>"
+  "author": "DengZY123"
 }

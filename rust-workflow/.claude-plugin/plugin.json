@@ -2,5 +2,5 @@
   "name": "rust-workflow",
   "version": "0.1.0",
   "description": "Rust 开发流程 plugin：Cargo 命令封装、测试策略、Clippy lint 修复",
-  "author": "<your-name>"
+  "author": "DengZY123"
 }
