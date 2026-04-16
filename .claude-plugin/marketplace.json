@@ -1,0 +1,39 @@
+{
+  "name": "dev-workflow-marketplace",
+  "owner": "<your-github-username>",
+  "plugins": [
+    {
+      "name": "nextjs-workflow",
+      "source": {
+        "type": "local",
+        "path": "./nextjs-workflow"
+      },
+      "description": "Next.js 开发流程 skills：组件创建、测试策略、部署流程",
+      "version": "0.1.0",
+      "category": "frontend",
+      "keywords": ["nextjs", "react", "rsc", "vercel", "testing"]
+    },
+    {
+      "name": "rust-workflow",
+      "source": {
+        "type": "local",
+        "path": "./rust-workflow"
+      },
+      "description": "Rust 开发流程 skills：Cargo 管理、测试、Clippy lint",
+      "version": "0.1.0",
+      "category": "backend",
+      "keywords": ["rust", "cargo", "clippy", "testing"]
+    },
+    {
+      "name": "common-workflow",
+      "source": {
+        "type": "local",
+        "path": "./common-workflow"
+      },
+      "description": "通用开发流程 skills：Git commit 规范、PR review 流程",
+      "version": "0.1.0",
+      "category": "workflow",
+      "keywords": ["git", "commit", "pr", "review", "conventional-commits"]
+    }
+  ]
+}
