@@ -1,6 +1,7 @@
 ---
 name: review-rules
 description: "Next.js / React 前端项目的代码审查规则，供 /review command 加载。覆盖 RSC/RCC 边界、hydration、i18n、bundle size、客户端安全等维度。"
+user-invocable: false
 ---
 
 # 前端审查规则（Next.js / React）

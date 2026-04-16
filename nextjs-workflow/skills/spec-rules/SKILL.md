@@ -1,6 +1,7 @@
 ---
 name: spec-rules
 description: "Next.js / React 前端项目的技术方案补充规则，供 /spec command 加载。关注 RSC 决策、组件设计、客户端/服务端边界等。"
+user-invocable: false
 ---
 
 # 前端方案补充规则（Next.js / React）

@@ -1,6 +1,7 @@
 ---
 name: git-commit
 description: "Use this skill whenever the user commits code, asks about commit message conventions, wants to generate a conventional commit message, or needs help with commit scope/type/breaking change formatting."
+user-invocable: false
 ---
 
 ## TODO

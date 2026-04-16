@@ -1,6 +1,7 @@
 ---
 name: spec-rules
 description: "Rust 后端项目的技术方案补充规则，供 /spec command 加载。关注 crate 结构、错误处理、并发模型、数据库设计等。"
+user-invocable: false
 ---
 
 # 后端方案补充规则（Rust）

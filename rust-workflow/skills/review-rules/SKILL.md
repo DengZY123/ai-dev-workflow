@@ -1,6 +1,7 @@
 ---
 name: review-rules
 description: "Rust 后端项目的代码审查规则，供 /review command 加载。覆盖 unsafe、生命周期、并发、错误处理、性能等维度。"
+user-invocable: false
 ---
 
 # 后端审查规则（Rust）

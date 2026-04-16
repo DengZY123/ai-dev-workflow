@@ -1,6 +1,7 @@
 ---
 name: spec-writing
 description: "技术方案的结构模板和写作规范，供 /spec command 加载。定义方案的标准章节、格式要求和质量标准。"
+user-invocable: false
 ---
 
 # 技术方案写作规范

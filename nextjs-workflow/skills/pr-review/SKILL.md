@@ -1,6 +1,7 @@
 ---
 name: pr-review
 description: "Use this skill whenever the user opens a PR, requests a self-review checklist, handles review comments, or asks for best practices on code review workflow and PR description writing."
+user-invocable: false
 ---
 
 ## TODO
