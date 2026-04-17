@@ -1,12 +1,14 @@
 ---
-description: 基于需求生成技术方案，产出到 GitHub Issue，供人评审
+description: 基于需求生成 Rust 项目的技术方案，产出到 GitHub Issue，供人评审
 argument-hint: <需求描述 或 issue URL/编号>
-allowed-tools: Bash(gh:*), Read, Grep, Glob, WebFetch, mcp__postgres-db__query
+allowed-tools: Bash(gh:*), Bash(cargo:*), Read, Grep, Glob, WebFetch, mcp__postgres-db__query
 ---
 
-# /spec — 生成代码方案
+# /spec — 生成 Rust 代码方案
 
 你的任务是把一个需求转成可评审、可执行的技术方案，并写入 GitHub Issue。这是研发流水线的第一道闸门，产出质量决定后续所有代码质量。
+
+针对 Rust 项目特有的关注点（crate 结构、错误建模、并发模型、unsafe、API 稳定性、编译时间），产出不能是通用模板的简单套用。
 
 ## 输入
 
@@ -14,7 +16,7 @@ $ARGUMENTS
 
 输入可能是：
 
-- 一段自然语言需求（例：“接入 xAI Grok 4 模型”）
+- 一段自然语言需求（例："在 auth crate 加 OAuth 登录"）
 - 一个已有 issue 的编号或 URL（例：`#42` 或 `https://github.com/.../issues/42`）—— 此时读取 issue 正文作为需求
 
 ## 核心约定（贯穿全流程）
@@ -26,17 +28,21 @@ $ARGUMENTS
 
 ## 执行步骤
 
-### Step 0 — 检测项目类型 & 加载规则
+### Step 0 — 检测 Rust 项目形态 & 加载规则
 
-1. 检查项目根目录：
-   - 存在 `package.json` 且含 `next` 依赖 → 前端项目，加载 `nextjs-workflow` plugin 的 `spec-rules` skill
-   - 存在 `Cargo.toml` → 后端项目，加载 `rust-workflow` plugin 的 `spec-rules` skill
-   - 两者都存在 → 全栈项目，两套规则都加载
-   - 都不存在 → 仅使用通用模板
-2. **必读**：`common-workflow` plugin 的 `spec-writing` skill，严格遵守其中的方案结构模板。
-3. 加载到的 `spec-rules` 作为补充章节要求，合并到方案模板中输出。
+1. 读 `Cargo.toml`，识别项目形态（后续章节取舍依此展开）：
+   - 单 crate / workspace（有 `[workspace]` 段，列出 member）
+   - 含 `actix-web` / `axum` / `rocket` / `warp` / `tonic` → **Web/RPC 服务**
+   - 含 `sqlx` / `sea-orm` / `diesel` → **含数据库**
+   - 含 `tokio` / `async-std` → **异步项目**
+   - 含 `#![no_std]` / embedded-hal → **嵌入式/no_std**（禁用 heap/std 相关建议）
+   - 含 `cargo-dist` / `cargo-release` → 关注发布配置影响
 
-> 若 skill 查找失败，打印缺失项并继续（退化为通用模板），不要中断。
+2. **必读**：`rust-workflow` plugin 的 `spec-writing` skill 和 `spec-rules` skill。
+   - `spec-writing`：方案结构模板和写作规范
+   - `spec-rules`：Rust 专项补充章节
+
+3. 记录项目形态为 `PROJECT_SHAPE`，Step 4 选择章节时用。
 
 ### Step 1 — 理解需求 & 扫描代码库
 
@@ -44,76 +50,100 @@ $ARGUMENTS
    - 纯数字或 `#数字` → issue 编号
    - `https://github.com/.../issues/N` → issue URL
    - 其他 → 自然语言需求
-2. 如果是 issue 编号/URL，用 `gh issue view <num> --json number,title,body,comments,url,labels` 读取内容，保存 `title`、`body`、`comments`、`labels` 备用。
-3. 用 Grep/Glob 快速扫描仓库，理解：
-   - 项目结构（前端 Next.js / 后端 Rust 的组织方式）
-   - 相关模块的现有实现（尤其是 provider adapter 相关代码，如果需求涉及）
-   - 已有的约定和模式
-4. 记录扫描到的**相关模块路径**，后续 Step 3.5 估算规模时会用到。
+2. 如果是 issue 编号/URL，用 `gh issue view <num> --json number,title,body,comments,url,labels` 读取内容。
+3. 用 Grep/Glob + Read 扫描仓库，重点搞清：
+   - **crate 拓扑**：workspace member 列表、各 crate 职责、依赖图（`cargo metadata --format-version 1` 可输出 JSON，必要时跑一次）
+   - **错误类型体系**：项目有没有统一的 `Error` enum？用 `thiserror` 还是 `anyhow`？API 边界的错误怎么转换
+   - **并发/异步形态**：runtime（tokio 多线程 vs current_thread）、共享状态套路（`Arc<Mutex>` / `DashMap` / actor）、任务生命周期管理方式
+   - **数据库访问层**：DAO/Repository 模式？`sqlx::query!` 还是 ORM？连接池配置
+   - **鉴权/中间件栈**：axum `Router::route_layer` / actix `wrap`，现有鉴权 middleware 的挂载位置
+   - **配置加载**：`config` / `figment` / `envy` / 直接 `std::env`
+   - **相关模块的现有实现**（特别是新 provider 接入、新 crate 添加类需求）
+4. 记录扫描到的**相关 crate 和路径**，Step 3.5 估算规模时用。
 
 ### Step 2 — 判断是否需要澄清
 
-评估需求的清晰度，以下情况必须先反问，禁止直接出方案：
+以下情况**必须先反问**，禁止直接出方案：
 
 - 用户场景不清晰（谁用、什么时候用、解决什么问题）
 - 边界模糊（是否包含 X、是否兼容旧行为）
-- 非功能需求缺失（性能、并发、成本、安全）
-- 涉及外部系统但未说明对接方式（厂商 API、鉴权、计费）
+- **非功能需求缺失**：
+  - **性能**：QPS 量级？P99 延迟要求？
+  - **并发**：单实例并发量？有无背压要求？
+  - **资源**：内存上限？是否需要 `no_std` 或 embedded？
+  - **可用性**：SLA 要求？是否允许重启？
+- **Rust 特有澄清点**：
+  - 是否对 **MSRV**（最低支持 Rust 版本）有要求？
+  - 是否是库 crate？若是，需明确**公开 API 的兼容承诺**（SemVer 级别）
+  - 是否涉及 **FFI / unsafe**？有无替代方案
+  - 是否需要 **WASM** 目标？（影响依赖选择和 `tokio` feature）
+- 涉及外部系统但未说明对接方式（厂商 API、鉴权、计费、rate limit）
 
 反问时遵守：
 
-- 一次问完所有关键问题，用编号列出，不要挤牙膏
-- 每个问题给出你的默认假设，用户可以只回答“默认即可”
+- 一次问完所有关键问题，用编号列出，不挤牙膏
+- 每个问题给出默认假设，用户可以只回答"默认即可"
 - 问题不超过 5 个，抓主要矛盾
 
-如果需求已经足够清晰，跳过此步，直接进入 Step 3。
+需求已经足够清晰则跳过此步。
 
 ### Step 3 — 判断方案粒度
 
 根据复杂度自适应：
 
-- **简单**（单模块、<3 个文件改动、无架构决策）→ 1 个方案 + 关键实现点
-- **中等**（跨模块、有架构选型、有明显 trade-off）→ 2-3 个方案对比 + 推荐项
-- **复杂**（涉及新厂商对接、新核心抽象、破坏兼容）→ 2-3 个方案对比 + 推荐项 + 风险专章
+- **简单**（单 crate、<3 个文件改动、无架构决策）→ 1 个方案 + 关键实现点
+- **中等**（跨 crate、有架构选型、有明显 trade-off）→ 2-3 个方案对比 + 推荐项
+- **复杂**（workspace 级改造、新核心抽象、破坏公开 API 兼容、涉及 unsafe/FFI 新增）→ 2-3 个方案对比 + 推荐项 + 风险专章
+
+**Rust 项目典型的"必须多方案对比"场景**：
+- 同步 vs 异步接口选择
+- `thiserror` vs `anyhow` vs 自定义 error 层级
+- trait object (`Box<dyn Trait>`) vs 泛型 (`<T: Trait>`)
+- 新 crate 独立 vs 并入现有 crate
+- 自研 vs 引入第三方 crate（对编译时间/二进制体积影响大时）
 
 ### Step 3.5 — 估算改动规模
 
 基于 Step 1 的代码库扫描结果估算改动规模。输出**放在方案 comment 最前面**（紧跟 `<!-- spec-bot:v1 -->` 标记）。
 
-**Size（T-shirt size，必填）**，从以下选一个：
+**Size（T-shirt size，必填）**：
 
 | Size | 典型特征 | 参考周期 |
 |---|---|---|
-| `XS` | 单文件、配置/文案级改动、无逻辑 | <0.5 人日 |
-| `S` | 单模块、<3 文件、无架构决策 | 0.5–1 人日 |
-| `M` | 跨模块、少量抽象调整、无破坏兼容 | 2–4 人日 |
-| `L` | 新模块/新抽象、多处改造、需要设计评审 | 1–2 周 |
-| `XL` | 跨系统、架构级、破坏兼容 | >2 周，**建议先拆分** |
+| `XS` | 单文件、配置/文案级、无逻辑、不改公开 API | <0.5 人日 |
+| `S` | 单 crate 内、<3 文件、无架构决策 | 0.5–1 人日 |
+| `M` | 跨 crate、少量抽象调整、无破坏兼容 | 2–4 人日 |
+| `L` | 新 crate / 新抽象、多处改造、需设计评审 | 1–2 周 |
+| `XL` | 跨 workspace、架构级、破坏公开 API、新增 unsafe 边界 | >2 周，**建议先拆分** |
 
-**辅助字段**：
+**Rust 专属辅助字段**（必填）：
 
 - **预计改动文件数**：给区间，如 `~5–8 个`
-- **涉及模块**：列出具体路径（基于 Step 1 的扫描结果）
-- **破坏兼容**：是 / 否
+- **涉及 crate**：列出具体 crate 名（基于 Step 1 扫描结果）
+- **破坏公开 API**：是 / 否（`pub` 项增删/签名变更 → 是）
+- **需要 SemVer 主版本升级**：是 / 否
 - **数据迁移**：是 / 否
-- **新增依赖**：是 / 否（若是，列出）
-- **需要架构评审**：是 / 否（Size = L 或 XL，或任一 risk 字段为"是"时，默认需要）
+- **新增依赖**：是 / 否（若是，列出 crate + 选择理由 + 启用的 feature）
+- **新增 unsafe 块**：是 / 否（若是，后续方案必须单独章节论证）
+- **FFI 边界变更**：是 / 否
+- **MSRV 影响**：是 / 否（是否用到更高版本才有的语法/API）
+- **编译时间影响**：预估（无感 / 轻微 / 显著）——heavy 依赖如 `reqwest` 全家桶、`tonic` 编译链会拉长
+- **二进制体积影响**：预估（无感 / 轻微 / 显著）
+- **需要架构评审**：是 / 否（Size = L/XL，或任一 risk 字段为"是"，默认需要）
 
-**评估时必须遵守：**
+**评估纪律：**
 
 - 基于实际代码扫描结果给判断，禁止凭感觉定档
 - Size 给出后，附一句理由（哪几项决定了这个档位）
 - Size = XL 时，先在对话里提示用户"建议先拆分"并列出拆分建议，**不直接出完整方案**，等用户确认是否继续
 
-**规模估算 block 的末尾必须带免责声明**：
+**规模估算 block 末尾必须带免责声明**：
 
 > 本估算用于排期参考和风险识别，不作为工作量计量或绩效指标。
 
 ### Step 4 — 撰写方案
 
-严格按 `spec-writing` skill 的模板输出 markdown，放在变量里准备写入 issue comment。
-
-**最终 comment 的结构**：
+严格按 `spec-writing` skill 的模板输出 markdown，并**叠加** `spec-rules` skill 里定义的 Rust 专项章节。最终方案结构：
 
 ```
 <!-- spec-bot:v1 -->
@@ -122,7 +152,73 @@ $ARGUMENTS
 （Step 3.5 的输出，含免责声明）
 
 ## 方案
-（Step 4 的正文）
+
+# <方案标题>
+
+## 背景与目标
+...
+
+## 现状分析
+（含 crate 拓扑和受影响 crate 列表）
+
+## 方案设计
+
+### 方案概述
+
+### 详细设计
+
+#### Crate 与模块结构
+（新增代码放哪个 crate / 是否新建 crate / pub 暴露面）
+
+#### 错误处理策略
+（错误类型定义、传播链路、重试策略）
+
+#### 并发/异步模型
+（任务生命周期、共享状态、是否需要 spawn_blocking）
+
+#### 数据模型变更
+（**含数据库时，必须用 mcp__postgres-db__query 实查 schema**，完整 DDL + 回滚）
+
+#### API 变更
+（公开 API 增删改、rust 函数签名、HTTP/RPC 接口）
+
+#### 核心流程图
+（Mermaid 流程图，覆盖主要参与者、分支、错误路径）
+
+#### 核心逻辑
+（伪代码或状态机描述）
+
+#### 文件变更清单
+
+### 关键决策
+（Rust 项目常见决策：sync/async、error 设计、trait object vs 泛型、依赖选择）
+
+## 风险与边界
+
+### 已知风险
+（包含 unsafe invariant、编译时间、二进制体积、MSRV 影响）
+
+### 边界场景
+
+### 兼容性
+（公开 API SemVer 影响、数据迁移路径、feature flag 组合）
+
+## 验收标准
+（必须包含：`cargo check --all-targets` 通过、`cargo clippy -- -D warnings` 通过、新增代码有测试）
+
+## 工作量估算
+```
+
+**最终 comment 结构固定为**：
+
+```
+<!-- spec-bot:v1 -->
+
+## 改动规模估算
+...
+
+## 方案
+...
 ```
 
 ### Step 5 — 判断并处理 issue 标题
@@ -133,33 +229,21 @@ $ARGUMENTS
 <type>(<scope>)?: <动词开头的描述>
 ```
 
-**type**（必选，封闭集合）：
+**type**（必选）：`feat` / `fix` / `refactor` / `perf` / `docs` / `test` / `chore` / `build` / `ci`
 
-| type | 用途 |
-|---|---|
-| `feat` | 新功能 |
-| `fix` | Bug 修复 |
-| `refactor` | 重构，不改变外部行为 |
-| `perf` | 性能优化 |
-| `docs` | 文档 |
-| `test` | 测试 |
-| `chore` | 杂项（依赖升级等） |
-| `build` | 构建系统、打包 |
-| `ci` | CI/CD 配置 |
+**scope**（可选，小写，**Rust 项目优先用 crate 名**）：
 
-**scope**（可选，小写）：
+- workspace 项目：crate 名（如 `feat(auth): 支持 OAuth`、`perf(core): 减少 clone`）
+- 单 crate 项目：模块名（如 `fix(handler): 修复 panic`）
+- 跨 crate / 根目录级 → 省略（如 `chore: 升级 tokio 到 1.40`）
+- 不写多 scope：不用 `feat(auth,api): ...`
 
-- 前端常用：`web` / `ui` / `api` / `auth`
-- 后端常用：`server` / `core` / `provider` / `db`
-- 全栈可嵌套，如 `provider/xai`
-- 不确定时可省略
+**描述部分**：
 
-**描述部分规则**：
-
-- 中文为主，专有名词保留原文（xAI、Grok、Next.js）
+- 中文为主，专有名词保留原文（tokio、sqlx、axum、Rust）
 - 动词开头（接入 / 支持 / 修复 / 重构 / 优化 / 移除）
-- 不加句号，不用省略号
-- 控制在 50 字以内，超了就拆 issue
+- 不加句号、不加感叹号
+- 控制在 50 字以内，超了拆 issue
 
 **正则校验**：
 
@@ -169,15 +253,13 @@ $ARGUMENTS
 
 **处理流程**：
 
-- **输入是自然语言需求**：按上述格式生成标题，Step 6 新建 issue 时直接使用。
+- **输入是自然语言需求**：按上述格式生成标题，Step 6 新建 issue 时用。
 - **输入是已有 issue**：
-  1. 用正则匹配原标题：
-     - **匹配** → 标题不动，跳过。
-     - **不匹配** → 视为草稿，进入第 2 步。
+  1. 正则匹配原标题：匹配则跳过；不匹配进入第 2 步
   2. 基于方案内容生成新标题：
-     - type 选择：新增能力 → `feat`；修 bug → `fix`；不改行为的内部改造 → `refactor`；提升性能 → `perf`；只动文档/测试/构建 → 对应 type；无法判断默认 `feat`
-     - scope 选择：基于 Step 1 扫描到的主要模块；跨多个模块时选最主要的一个或省略
-  3. 在对话里展示 `原标题 → 新标题`，征求用户确认。用户未明确否决即执行：
+     - type：新增能力 → `feat`；修 bug → `fix`；不改外部行为的内部改造 → `refactor`；提升性能 → `perf`；只动测试/构建/CI → 对应 type；无法判断默认 `feat`
+     - scope：基于 Step 1 扫描到的主要 crate；跨多个 crate 选最主要的一个或省略
+  3. 对话里展示 `原标题 → 新标题`，征求用户确认。用户未明确否决即执行：
      ```bash
      gh issue edit <num> --title "<新标题>"
      ```
@@ -191,7 +273,7 @@ $ARGUMENTS
 
 **写入流程**：
 
-1. 把最终 comment 内容（`<!-- spec-bot:v1 -->` + 规模估算 + 方案）写入临时文件 `/tmp/spec-<timestamp>.md`，避免 shell 转义问题。
+1. 把最终 comment 内容写入临时文件 `/tmp/spec-<timestamp>.md`，避免 shell 转义。
 
 2. **查找已有 spec comment**：
    ```bash
@@ -200,68 +282,71 @@ $ARGUMENTS
    ```
 
 3. **分支处理**：
-   - **未找到** → 新增：
-     ```bash
-     gh issue comment <num> --body-file /tmp/spec-<timestamp>.md
-     ```
+   - **未找到** → 新增：`gh issue comment <num> --body-file /tmp/spec-<timestamp>.md`
    - **找到一条** → 更新：
      ```bash
      gh api -X PATCH repos/:owner/:repo/issues/comments/<comment_id> \
        -F body=@/tmp/spec-<timestamp>.md
      ```
-   - **找到多条**（历史遗留）→ 更新最早那条，其余删除：
-     ```bash
-     gh api -X DELETE repos/:owner/:repo/issues/comments/<id>
-     ```
-     删除失败（权限不足）不中断，在总结里提示用户手动清理。
+   - **找到多条**（历史遗留）→ 更新最早那条，其余删除。删除失败不中断，在总结里提示手动清理。
 
 4. **根据规模估算打 label**：
    ```bash
    gh issue edit <num> --add-label size/<SIZE>
-   # 任一 risk 字段为"是"时，追加对应 label：
-   # --add-label risk/breaking
-   # --add-label risk/migration
-   # --add-label risk/arch-review
+   # 按 risk 字段追加：
+   # --add-label risk/breaking        破坏公开 API / SemVer 主版本
+   # --add-label risk/migration       需数据迁移
+   # --add-label risk/arch-review     需架构评审
+   # --add-label risk/unsafe          新增 unsafe 块
+   # --add-label risk/msrv            影响 MSRV
    ```
-   若 label 不存在，先创建：
-   ```bash
-   gh label create size/<SIZE> --color <color>
-   ```
+
+   label 不存在先创建：`gh label create size/<SIZE> --color <color>`
+
    建议颜色：
    - `size/XS`: `c2e0c6` / `size/S`: `bfd4f2` / `size/M`: `fbca04` / `size/L`: `f9a03f` / `size/XL`: `e11d21`
-   - `risk/*`: `e11d21`
+   - `risk/*`: `e11d21`（`risk/unsafe` 用 `b60205` 区分严重度）
    - `spec`: `5319e7`
 
-   label 创建或添加失败（权限不足）跳过，在总结里提示。
+   创建或添加失败跳过，在总结里提示。
 
 5. 拿到 comment URL 和 issue URL，在对话里打印。
 
-6. **任何 `gh` 命令失败**：打印完整错误、保留临时文件路径、告知用户可手动执行的命令，不要静默失败。
+6. **任何 `gh` 命令失败**：打印完整错误、保留临时文件路径、告知用户可手动执行的命令，不静默失败。
 
 ### Step 7 — 输出总结
 
-在对话里简短告诉用户：
+对话里简短告诉用户：
 
 - Issue URL 和 spec comment URL
 - 本次是**新增**还是**更新**了 spec comment
 - 标题变更情况（`原标题 → 新标题`，或"未变更"）
 - **改动规模**：Size + 简要理由
 - **新增的 label**：列出
+- **Rust 专项关注**（若有）：
+  - 是否需要 SemVer 主版本升级
+  - 是否新增 unsafe（含必要性判断）
+  - 编译时间/二进制体积影响评估
+  - MSRV 影响
 - 方案粒度（1 个 / N 个对比）
-- 如果有推荐项，明确指出
+- 如有推荐项，明确指出
 - 需要用户评审的关键决策点（3 条以内）
+
+---
 
 ## 禁止事项
 
 - ❌ 不写任何代码文件（这是 `/spec`，不是 `/build`）
+- ❌ 不运行 `cargo build` 等编译命令（`cargo metadata` / `cargo tree` 可接受，用于分析）
 - ❌ 不修改 issue body（原需求正文）
 - ❌ 不在未告知用户的情况下修改 issue 标题
 - ❌ 不新增重复的 spec comment；同一 issue 同一版本的方案只能有一条
-- ❌ 不在方案里塞无关的"最佳实践"大段文字，每句话都要服务于本次需求
-- ❌ 不用模糊词掩盖未决策项；有取舍就写明取舍，真未决就明确列入"待确认"
+- ❌ 不塞无关"最佳实践"大段文字
+- ❌ 不用模糊词掩盖未决策项；有取舍就写明取舍，真未决列入"待确认"
 - ❌ 不用精确数字（LoC / 工时）做规模估算，只用 T-shirt size + 辅助字段
 - ❌ 不省略规模估算末尾的免责声明
+- ❌ 涉及 unsafe / FFI / 破坏公开 API 的方案，不得遗漏对应章节
 
 ## 完成标志
 
-用户看到 issue URL 和 comment URL，打开后能立刻判断"方案对不对"，不需要追问细节；重复运行 `/spec` 不会产生 comment 堆积；标题和 label 都符合约定，方便后续筛选和排期。
+用户看到 issue URL 和 comment URL，打开后能立刻判断"方案对不对"，不追问细节；重复运行 `/spec` 不产生 comment 堆积；标题和 label 符合约定，方便筛选和排期；Rust 专项风险（公开 API、unsafe、MSRV、编译时间）都已显式标注。
