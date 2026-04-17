@@ -79,20 +79,6 @@ REVIEW_JSON="$REVIEW_DIR/$HEAD_SHA.json"
 
 校验全过后，把 `REVIEW_MD` 路径、`judgment`、`timestamp`、`head_sha`、`files_count`、`project_type`、`workspace_members`、`checks_run` 存起来，后续用。
 
-### C. Rust 项目基本健康检查（不阻断，仅告警）
-
-在 review 产物校验通过后，做一次轻量确认：
-
-```bash
-# 确认格式没问题（review 不一定查 fmt）
-cargo fmt --all -- --check
-```
-
-- 不通过 → 打印警告但继续：
-  > ⚠️ `cargo fmt --check` 不通过，建议在合并前跑 `cargo fmt --all`。PR 照常提交。
-
-> 不跑 `cargo check`/`cargo clippy`，这些是 /review 的职责；此处只查格式。
-
 ---
 
 ## 执行步骤
@@ -321,7 +307,6 @@ gh api -X DELETE /repos/:owner/:repo/issues/comments/<comment_id>
 - **feature flag 变更**：启用/禁用的 feature 列表
 - **MSRV 影响**：新依赖是否要求更高 rustc 版本
 - **编译时间/体积影响**：heavy 依赖（`reqwest` 默认、`tonic`、`polars` 等）标注"显著增加编译时间"
-- **审计建议**：新增三方 crate（非 tokio-rs / serde-rs / rust-lang 官方）建议跑 `cargo audit`
 
 #### 6.2 数据库 Migration 扫描
 
@@ -371,7 +356,6 @@ gh api -X DELETE /repos/:owner/:repo/issues/comments/<comment_id>
 - `docker-compose.yml` / `docker-compose.*.yml` 变更
 - k8s manifest（`k8s/`、`deploy/`、`helm/charts/`）变更
 - systemd unit 文件（`*.service`）
-- 构建脚本 `build.rs` 变更
 
 对每条判断：
 - **是否需要重新构建镜像**
@@ -413,7 +397,6 @@ gh api -X DELETE /repos/:owner/:repo/issues/comments/<comment_id>
 
 **操作清单**：
 - [ ] CI 构建镜像的 Rust 版本已对齐
-- [ ] 新增三方 crate 已跑 `cargo audit`
 - [ ] heavy 依赖变更已评估编译时间影响
 
 ### 2. 数据库 Migration

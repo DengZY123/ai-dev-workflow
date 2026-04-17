@@ -30,19 +30,17 @@ $ARGUMENTS
 
 ### Step 0 — 检测 Rust 项目形态 & 加载规则
 
-1. 读 `Cargo.toml`，识别项目形态（后续章节取舍依此展开）：
-   - 单 crate / workspace（有 `[workspace]` 段，列出 member）
-   - 含 `actix-web` / `axum` / `rocket` / `warp` / `tonic` → **Web/RPC 服务**
-   - 含 `sqlx` / `sea-orm` / `diesel` → **含数据库**
-   - 含 `tokio` / `async-std` → **异步项目**
-   - 含 `#![no_std]` / embedded-hal → **嵌入式/no_std**（禁用 heap/std 相关建议）
-   - 含 `cargo-dist` / `cargo-release` → 关注发布配置影响
+1. 读 `Cargo.toml`，记录四个 boolean 字段（后续章节取舍依此展开）：
+   - `is_workspace`：是否有 `[workspace]` 段
+   - `has_web`：是否含 `actix-web` / `axum` / `rocket` / `warp` / `tonic`
+   - `has_db`：是否含 `sqlx` / `sea-orm` / `diesel`
+   - `is_async`：是否含 `tokio` / `async-std`
 
 2. **必读**：`rust-workflow` plugin 的 `spec-writing` skill 和 `spec-rules` skill。
    - `spec-writing`：方案结构模板和写作规范
    - `spec-rules`：Rust 专项补充章节
 
-3. 记录项目形态为 `PROJECT_SHAPE`，Step 4 选择章节时用。
+3. 记录上述字段为 `PROJECT_SHAPE`，Step 4 选择章节时用。
 
 ### Step 1 — 理解需求 & 扫描代码库
 
@@ -75,8 +73,6 @@ $ARGUMENTS
 - **Rust 特有澄清点**：
   - 是否对 **MSRV**（最低支持 Rust 版本）有要求？
   - 是否是库 crate？若是，需明确**公开 API 的兼容承诺**（SemVer 级别）
-  - 是否涉及 **FFI / unsafe**？有无替代方案
-  - 是否需要 **WASM** 目标？（影响依赖选择和 `tokio` feature）
 - 涉及外部系统但未说明对接方式（厂商 API、鉴权、计费、rate limit）
 
 反问时遵守：
@@ -96,11 +92,8 @@ $ARGUMENTS
 - **复杂**（workspace 级改造、新核心抽象、破坏公开 API 兼容、涉及 unsafe/FFI 新增）→ 2-3 个方案对比 + 推荐项 + 风险专章
 
 **Rust 项目典型的"必须多方案对比"场景**：
-- 同步 vs 异步接口选择
-- `thiserror` vs `anyhow` vs 自定义 error 层级
-- trait object (`Box<dyn Trait>`) vs 泛型 (`<T: Trait>`)
-- 新 crate 独立 vs 并入现有 crate
-- 自研 vs 引入第三方 crate（对编译时间/二进制体积影响大时）
+- 引入新第三方 crate vs 自研（对编译时间/二进制体积影响大时）
+- 破坏公开 API 的改动（需对比兼容改法 vs 破坏改法）
 
 ### Step 3.5 — 估算改动规模
 
@@ -120,15 +113,10 @@ $ARGUMENTS
 
 - **预计改动文件数**：给区间，如 `~5–8 个`
 - **涉及 crate**：列出具体 crate 名（基于 Step 1 扫描结果）
-- **破坏公开 API**：是 / 否（`pub` 项增删/签名变更 → 是）
-- **需要 SemVer 主版本升级**：是 / 否
+- **破坏公开 API**：是 / 否（`pub` 项增删/签名变更、需 SemVer 主版本升级、MSRV 提升 → 都算"是"）
 - **数据迁移**：是 / 否
-- **新增依赖**：是 / 否（若是，列出 crate + 选择理由 + 启用的 feature）
 - **新增 unsafe 块**：是 / 否（若是，后续方案必须单独章节论证）
-- **FFI 边界变更**：是 / 否
-- **MSRV 影响**：是 / 否（是否用到更高版本才有的语法/API）
-- **编译时间影响**：预估（无感 / 轻微 / 显著）——heavy 依赖如 `reqwest` 全家桶、`tonic` 编译链会拉长
-- **二进制体积影响**：预估（无感 / 轻微 / 显著）
+- **新增依赖**：是 / 否（若是，列出 crate + 选择理由 + 启用的 feature；heavy 依赖如 `reqwest` 全家桶、`tonic` 编译链会拉长，需标注）
 - **需要架构评审**：是 / 否（Size = L/XL，或任一 risk 字段为"是"，默认需要）
 
 **评估纪律：**
@@ -204,7 +192,13 @@ $ARGUMENTS
 （公开 API SemVer 影响、数据迁移路径、feature flag 组合）
 
 ## 验收标准
-（必须包含：`cargo check --all-targets` 通过、`cargo clippy -- -D warnings` 通过、新增代码有测试）
+（必须分五层写，每层按本次需求**具体展开**，不允许只抄模板原话）
+
+- **行为级**：每条需求对应一条可验证的功能点（如 "调用 POST /auth/oauth/login，Location 头指向 Provider，且 DB 写入 oauth_state 记录"）
+- **测试级**：新增逻辑必须有单元/集成测试，覆盖核心分支 + 至少 1 个错误路径
+- **工具链级**：`cargo fmt --check` / `cargo check --all-targets` / `cargo clippy -- -D warnings` / `cargo test` 全通过
+- **可观测性级**：关键路径有 `tracing` 日志；外部调用有 metric；错误有结构化字段
+- **文档级**：公开 API 有 `///` 文档；复杂逻辑或 `unsafe` 块有注释说明
 
 ## 工作量估算
 ```
@@ -294,11 +288,10 @@ $ARGUMENTS
    ```bash
    gh issue edit <num> --add-label size/<SIZE>
    # 按 risk 字段追加：
-   # --add-label risk/breaking        破坏公开 API / SemVer 主版本
+   # --add-label risk/breaking        破坏公开 API / SemVer 主版本 / MSRV 提升
    # --add-label risk/migration       需数据迁移
    # --add-label risk/arch-review     需架构评审
    # --add-label risk/unsafe          新增 unsafe 块
-   # --add-label risk/msrv            影响 MSRV
    ```
 
    label 不存在先创建：`gh label create size/<SIZE> --color <color>`
@@ -324,10 +317,9 @@ $ARGUMENTS
 - **改动规模**：Size + 简要理由
 - **新增的 label**：列出
 - **Rust 专项关注**（若有）：
-  - 是否需要 SemVer 主版本升级
+  - 是否破坏公开 API（含 SemVer 主版本 / MSRV 提升）
   - 是否新增 unsafe（含必要性判断）
-  - 编译时间/二进制体积影响评估
-  - MSRV 影响
+  - 是否引入 heavy 依赖（影响编译时间/二进制体积）
 - 方案粒度（1 个 / N 个对比）
 - 如有推荐项，明确指出
 - 需要用户评审的关键决策点（3 条以内）
