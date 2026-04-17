@@ -179,7 +179,7 @@ $ARGUMENTS
 #### 文件变更清单
 
 ### 关键决策
-（Rust 项目常见决策：sync/async、error 设计、trait object vs 泛型、依赖选择）
+（格式与收录规则严格按 `spec-writing` skill：问题开头，只列需评审拍板或有明显 trade-off 的决策，3–5 条。禁止把实现细节、命名、行业通识当决策列出来。）
 
 ## 风险与边界
 
@@ -192,13 +192,8 @@ $ARGUMENTS
 （公开 API SemVer 影响、数据迁移路径、feature flag 组合）
 
 ## 验收标准
-（必须分五层写，每层按本次需求**具体展开**，不允许只抄模板原话）
-
-- **行为级**：每条需求对应一条可验证的功能点（如 "调用 POST /auth/oauth/login，Location 头指向 Provider，且 DB 写入 oauth_state 记录"）
-- **测试级**：新增逻辑必须有单元/集成测试，覆盖核心分支 + 至少 1 个错误路径
-- **工具链级**：`cargo fmt --check` / `cargo check --all-targets` / `cargo clippy -- -D warnings` / `cargo test` 全通过
-- **可观测性级**：关键路径有 `tracing` 日志；外部调用有 metric；错误有结构化字段
-- **文档级**：公开 API 有 `///` 文档；复杂逻辑或 `unsafe` 块有注释说明
+（严格按 `spec-writing` skill 的两段式：**业务场景验收** 用"给定 / 操作 / 期望"三段式覆盖 happy path + 边界 + 兼容降级 + 容错 + 副作用；**工程质量基线** 一段清单覆盖 fmt/clippy/test、公开 API 文档、`tracing` 日志、`unsafe` invariant。
+**禁止**：五层分类（行为/测试/工具链/可观测性/文档）、英文 snake_case 测试函数名作场景名、把"覆盖核心分支 + 1 个错误路径"这种测试策略写进验收。）
 
 ## 工作量估算
 ```
