@@ -16,7 +16,7 @@
       "name": "rust-workflow",
       "source": "./rust-workflow",
       "description": "Rust 全流程开发插件：/spec → /review → /pr，内置后端专项规则",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "category": "backend",
       "keywords": ["rust", "cargo", "spec", "review", "pr"]
     }
