@@ -1,13 +1,38 @@
-# Dev Workflow Marketplace
+> 这是 v0.1 初始版本。内容会随实际使用迭代，欢迎在每次使用后调整。
+> 看到"为什么这里要这样"想不起答案的规则，就删掉它。
 
-个人开发流程 Claude Code plugin marketplace。每个插件自包含完整研发流程（/spec → /review → /pr），并内置对应技术栈的专项规则。
+# dev-workflow
 
-## Plugins
+团队研发流程工具库，作为 Claude Code plugin 使用。封装从需求到上线的核心流程：`/spec → /review → /pr`。
 
-| Plugin | 说明 |
-|--------|------|
-| `nextjs-workflow` | Next.js 全流程：/spec → /review → /pr + 前端专项规则 |
-| `rust-workflow` | Rust 全流程：/spec → /review → /pr + 后端专项规则 |
+## 定位
+
+- 这是一个**交接资产**，不只是当前工具——未来新人接手时能直接用
+- 内容遵循"最小可行版"原则，随实际使用生长，不提前堆规则
+- 支持 Next.js 前端 + Rust 后端混合栈，自动检测项目类型
+
+## Commands
+
+| Command | 用途 |
+|---------|------|
+| `/spec` | 需求 → 技术方案，写入 GitHub Issue |
+| `/review` | 代码审查，PASS/FAIL 判定，产物落盘 |
+| `/pr` | 提交 PR + review 结果 + 发布物料清单 |
+| `/discuss` | 帮你梳理业务逻辑或代码逻辑 |
+
+所有 command 支持参数 `rust` / `nextjs` 强制指定项目类型，默认自动检测。
+
+## Skills
+
+| Skill | 用途 |
+|-------|------|
+| `spec-writing` | 技术方案结构模板和写作规范 |
+| `spec-rules-rust` | Rust 方案补充规则 |
+| `spec-rules-nextjs` | Next.js 方案补充规则 |
+| `review-rules-rust` | Rust 审查规则 |
+| `review-rules-nextjs` | Next.js 审查规则 |
+| `git-commit` | Conventional commit 规范（待填充） |
+| `pr-review` | PR 自查清单（待填充） |
 
 ## 研发流程
 
@@ -18,33 +43,14 @@
 ## 安装
 
 ```bash
-# 添加 marketplace
-/plugin marketplace add DengZY123/ai-dev-workflow
-
-# 前端项目装这个
-/plugin install nextjs-workflow
-
-# 后端项目装这个
-/plugin install rust-workflow
+claude --plugin-dir /path/to/dev-workflow
 ```
 
-## 更新
+## 目录结构
 
-```bash
-/plugin marketplace update
 ```
-
-## 本地开发调试
-
-```bash
-claude --plugin-dir ./nextjs-workflow
-claude --plugin-dir ./rust-workflow
+dev-workflow/
+  commands/         ← 4 个命令入口
+  skills/           ← 7 个知识模块
+  README.md
 ```
-
-修改 SKILL.md / command .md 后使用 `/reload-plugins` 热重载，无需重启 Claude Code。
-
-## 注意事项
-
-- 两个插件各自包含完整的 commands 和 skills，装一个就够用
-- common-workflow 作为内部共享源保留，不再单独发布
-- skill scripts 中引用插件内文件时，使用 `${CLAUDE_PLUGIN_ROOT}` 环境变量

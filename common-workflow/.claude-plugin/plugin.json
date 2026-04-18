@@ -1,6 +1,0 @@
-{
-  "name": "common-workflow",
-  "version": "0.1.0",
-  "description": "通用开发流程 plugin：Git commit 规范、PR review 自查与处理",
-  "author": { "name": "DengZY123" }
-}

@@ -5,20 +5,12 @@
   },
   "plugins": [
     {
-      "name": "nextjs-workflow",
-      "source": "./nextjs-workflow",
-      "description": "Next.js 全流程开发插件：/spec → /review → /pr，内置前端专项规则",
-      "version": "0.2.0",
-      "category": "frontend",
-      "keywords": ["nextjs", "react", "rsc", "spec", "review", "pr"]
-    },
-    {
-      "name": "rust-workflow",
-      "source": "./rust-workflow",
-      "description": "Rust 全流程开发插件：/spec → /review → /pr，内置后端专项规则",
-      "version": "0.3.0",
-      "category": "backend",
-      "keywords": ["rust", "cargo", "spec", "review", "pr"]
+      "name": "dev-workflow",
+      "source": ".",
+      "description": "研发全流程插件：/spec → /review → /pr → /discuss，支持 Next.js + Rust 混合栈",
+      "version": "0.1.0",
+      "category": "workflow",
+      "keywords": ["spec", "review", "pr", "nextjs", "rust", "workflow"]
     }
   ]
 }
